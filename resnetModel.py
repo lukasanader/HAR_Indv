@@ -32,7 +32,9 @@ class ResTrainer:
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.batch_size = batch_size
         torch.cuda.empty_cache()
-        self.model = ResNet3DClassifier(num_classes).to(self.device)
+        # self.model = ResNet3DClassifier(num_classes).to(self.device)
+        self.model = torch.load('resnet_model.pt', map_location=self.device,weights_only=False)
+
         self.criterion = nn.CrossEntropyLoss()
         self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
         self.label_encoder = LabelEncoder()
@@ -43,7 +45,7 @@ class ResTrainer:
         X_val = []
         y_val = []
         test_meta=[]
-        for split in ['train', 'test']:
+        for split in ['test']:
             split_path=os.path.join(direc, split)
             for action in os.listdir(split_path):
                 action_path=os.path.join(split_path,action)
@@ -53,13 +55,7 @@ class ResTrainer:
                         data = np.load(file_path, allow_pickle=True)
                         optical_flows = data['optical_flows']
                         metadata = data['metadata']
-                        if isinstance(metadata, np.ndarray):
-                            try:
-                                meta_dict = metadata.item()
-                                if not isinstance(meta_dict, dict):
-                                    meta_dict = {'unknown': 'unknown'}
-                            except (ValueError, TypeError):
-                                meta_dict = {'unknown': 'unknown'}
+                        meta_dict = metadata.item()
 
                         if len(optical_flows) < 16:
                             indices = np.array(list(range(len(optical_flows))) * (16 // len(optical_flows) + 1))
@@ -83,7 +79,7 @@ class ResTrainer:
         
         # Encode labels
         y_train_encoded = self.label_encoder.fit_transform(y_train)
-        y_val_encoded = self.label_encoder.transform(y_val)
+        y_val_encoded = self.label_encoder.fit_transform(y_val)
         y_train_np = np.array(y_train_encoded, dtype=np.int64)
         y_val_np = np.array(y_val_encoded, dtype=np.int64)
         
@@ -120,6 +116,7 @@ class ResTrainer:
     
     def analyse_speed(self, all_labels, all_preds, test_meta):
         speeds = ['slow', 'medium', 'fast']
+        accuracies = []
         for speed in speeds:
             indices = []
             for i in range(len(test_meta)):
@@ -130,12 +127,22 @@ class ResTrainer:
                 speed_true = [all_labels[i] for i in indices]
                 speed_pred = [all_preds[i] for i in indices]
                 accuracy = np.mean(np.array(speed_true) == np.array(speed_pred))
+                accuracies.append(accuracy)
                 print(f"Speed '{speed}': Accuracy = {accuracy:.4f}")
             else:
                 print(f"No samples for speed '{speed}'")
 
+        plt.figure(figsize=(10, 6))
+        plt.bar(speeds, accuracies)
+        plt.title('Speed analysis')
+        plt.xlabel('Speed')
+        plt.ylabel('Accuracy')
+        plt.savefig('res_speed.png')
+        plt.close()
+
     def analyse_complexity(self, all_labels, all_preds, test_meta):
         complexities = ['simple', 'complex']
+        accuracies = []
         for complexity in complexities:
             indices = []
             for i in range(len(test_meta)):
@@ -146,9 +153,101 @@ class ResTrainer:
                 comp_true = [all_labels[i] for i in indices]
                 comp_pred = [all_preds[i] for i in indices]
                 accuracy = np.mean(np.array(comp_true) == np.array(comp_pred))
+                accuracies.append(accuracy)
                 print(f"Complexity '{complexity}': Accuracy = {accuracy:.4f}")
             else:
                 print(f"No samples for complexity '{complexity}'")
+            plt.figure(figsize=(10, 6))
+            plt.bar(complexities, accuracies)
+            plt.title('Complexity analysis')
+            plt.xlabel('Complexity')
+            plt.ylabel('Accuracy')
+            plt.savefig('res_complexity.png')
+            plt.close()
+
+    def per_class_recall_graph(self, all_labels, all_preds, num_classes=41):
+            class_recall = []
+            for i in range(num_classes):
+                true_positive=0
+                false_negative=0
+                for j in range(len(all_labels)):
+                    if all_labels[j] == i:
+                        if all_preds[j] == i:
+                            true_positive+=1
+                        else:
+                            false_negative+=1
+                recall = true_positive/(true_positive+false_negative)
+                if (true_positive+false_negative)!=0:
+                    recall = true_positive/(true_positive+false_negative)
+                else:
+                    recall=0
+                class_recall.append(recall)
+            plt.figure(figsize=(12,6))
+            plt.bar(self.label_encoder.classes_, class_recall)
+            plt.xlabel('Class')
+            plt.ylabel('Recall')
+            plt.xticks(rotation=90)
+            plt.title('Per Class Recall')
+            plt.tight_layout()
+            plt.savefig('per_class_recall_res.png')
+            plt.close()
+
+    def per_class_precision_graph(self, all_labels, all_preds, num_classes=41):
+        class_precision = []
+        for i in range(num_classes):
+            true_positive=0
+            false_positive=0
+            for j in range(len(all_labels)):
+                if all_preds[j] == i:
+                    if all_labels[j] == i:
+                        true_positive+=1
+                    else:
+                        false_positive+=1
+            if (true_positive+false_positive)!=0:
+                precision = true_positive/(true_positive+false_positive)
+            else:
+                precision=0
+            class_precision.append(precision)
+        plt.figure(figsize=(12,6))
+        plt.bar(self.label_encoder.classes_, class_precision)
+        plt.xlabel('Class')
+        plt.ylabel('Precision')
+        plt.xticks(rotation=90)
+        plt.title('Per Class Precision')
+        plt.tight_layout()
+        plt.savefig('per_class_precision_res.png')
+        plt.close()
+
+    def per_class_f1_graph(self, all_labels, all_preds, num_classes=41):
+        class_f1 = []
+        for i in range(num_classes):
+            true_positive=0
+            false_positive=0
+            false_negative=0
+            for j in range(len(all_labels)):
+                if all_preds[j] == i:
+                    if all_labels[j] == i:
+                        true_positive+=1
+                    else:
+                        false_positive+=1
+                elif all_labels[j] == i:
+                    false_negative+=1
+            precision = true_positive/(true_positive+false_positive)
+            recall = true_positive/(true_positive+false_negative)
+            if (precision+recall)!=0:
+                f1 = 2*precision*recall/(precision+recall)
+            else:
+                f1=0
+            class_f1.append(f1)
+        plt.figure(figsize=(12,6))
+        plt.bar(self.label_encoder.classes_, class_f1)
+        plt.xlabel('Class')
+        plt.ylabel('F1 Score')
+        plt.xticks(rotation=90)
+        plt.title('Per Class F1 Score')
+        plt.tight_layout()
+        plt.savefig('per_class_f1_res.png')
+        plt.close()
 
     def evaluate(self, val_loader, test_meta):
         self.model.eval()
@@ -172,18 +271,7 @@ class ResTrainer:
             all_preds, 
             target_names=self.label_encoder.classes_
         ))
-        
-        # Confusion Matrix
-        cm = confusion_matrix(all_labels, all_preds)
-        plt.figure(figsize=(10,8))
-        sns.heatmap(
-            cm, 
-            annot=True, 
-            fmt='d', 
-            cmap='Blues', 
-            xticklabels=self.label_encoder.classes_, 
-            yticklabels=self.label_encoder.classes_
-        )
+
         plt.title('Confusion Matrix')
         plt.xlabel('Predicted')
         plt.ylabel('Actual')
@@ -193,6 +281,9 @@ class ResTrainer:
         
         self.analyse_speed(all_labels, all_preds, test_meta)
         self.analyse_complexity(all_labels, all_preds, test_meta)
+        self.per_class_recall_graph(all_labels,all_preds)
+        self.per_class_precision_graph(all_labels,all_preds)
+        self.per_class_f1_graph(all_labels,all_preds)
 
 if __name__ == "__main__":
     optical_flow_dir = '/scratch/prj/inf_media_pipe_dynamics/optical_flow_features'
