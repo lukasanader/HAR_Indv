@@ -2,6 +2,9 @@
 
 This repository contains the code and resources for a dissertation research project that investigates and compares different approaches to human action recognition. The project introduces intelligent preprocessing through custom speed and complexity classifiers, then evaluates pose estimation methods (LSTM) versus optical flow methods (ResNet3D), culminating in a weighted ensemble model that combines both approaches.
 
+<img width="777" height="437" alt="Live Stream Action Recognition" src="https://github.com/user-attachments/assets/be5609fc-b4e6-4d4c-b157-37b3103c929f" />
+
+
 ## Research Overview
 
 This project provides a comprehensive evaluation of human action recognition techniques by:
@@ -139,6 +142,40 @@ python3 harStream.py
 - **Modular Design**: Separate components for easy experimentation and modification
 - **Comprehensive Pipeline**: End-to-end workflow from intelligent data preprocessing to deployment
 
+## Results and Performance
+
+The comparative evaluation demonstrates the effectiveness of the ensemble approach across different action characteristics:
+
+### Performance Summary
+
+| Model | Simple | Complex | Slow | Medium | Fast | Overall |
+|-------|--------|---------|------|--------|------|---------|
+| LSTM | 66% | 53% | 73% | 58% | 45% | **59%** |
+| ResNet3D | 83% | 70% | 76% | 80% | 73% | **77%** |
+| **LSTM + ResNet3D** | **89%** | **80%** | **88%** | **86%** | **80%** | **84%** |
+
+### Key Findings
+
+**Ensemble Superiority**: The weighted ensemble achieved 84% overall accuracy, representing:
+- 25-point improvement over LSTM alone (59% → 84%)
+- 7-point improvement over ResNet3D alone (77% → 84%)
+- Consistent performance gains across all action categories
+
+**Model-Specific Insights**:
+- **ResNet3D dominance**: Optical flow consistently outperformed pose estimation across all action types
+- **LSTM limitations**: Struggled particularly with fast actions (45%), likely due to difficulty tracking rapid pose changes
+- **Complexity impact**: Both individual models showed degraded performance on complex vs. simple actions
+
+**Preprocessing Validation**: The speed and complexity classifications revealed meaningful performance patterns:
+- **Speed sensitivity**: Fast actions proved most challenging for pose-based methods
+- **Complexity correlation**: Performance decreased with action complexity for individual models
+- **Ensemble robustness**: The combined approach maintained strong performance even for complex actions (80%)
+
+**Practical Implications**: 
+- 84% accuracy demonstrates real-world viability
+- Complementary strengths of pose and optical flow methods validated
+- Intelligent preprocessing enables targeted performance analysis
+
 ## Configuration
 
 Each script requires directory path updates before execution. Ensure that:
@@ -158,4 +195,5 @@ Each script requires directory path updates before execution. Ensure that:
 This work was completed as part of a dissertation research project investigating the effectiveness of different feature extraction and modeling approaches for human action recognition. The comparative analysis provides insights into the strengths and limitations of pose-based versus motion-based recognition methods.
 
 ---
+
 **Note**: This repository contains the complete codebase for the dissertation project. For detailed methodology, experimental results, and theoretical analysis, please refer to the full dissertation document.
