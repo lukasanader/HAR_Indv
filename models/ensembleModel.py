@@ -12,10 +12,10 @@ import seaborn as sns
 from tqdm import tqdm
 from sklearn.preprocessing import LabelEncoder
 from sklearn.metrics import classification_report, confusion_matrix
-from model import Trainer
-from model import LSTMModel
-from resnetModel import ResTrainer
-from resnetModel import ResNet3DClassifier
+from HAR_Indv.models.model import Trainer
+from HAR_Indv.models.model import LSTMModel
+from HAR_Indv.models.resnetModel import ResTrainer
+from HAR_Indv.models.resnetModel import ResNet3DClassifier
 import re
 
 class Ensemble:
